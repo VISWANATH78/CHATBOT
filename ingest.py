@@ -118,8 +118,12 @@ def main():
     all_text = " ".join(text_chunk.page_content for text_chunk in texts)
     
     # Load the SentenceTransformer model
-    model = SentenceTransformer('hkunlp/instructor-xl')
-    
+    try:
+        model = SentenceTransformer('hkunlp/instructor-xl')
+    except Exception as ex:
+        logging.error(f"Error loading SentenceTransformer model: {ex}")
+        return
+
     embeddings = model.encode(all_text)
 
     logging.info(f"Loaded embeddings from {EMBEDDING_MODEL_NAME}")
@@ -128,7 +132,9 @@ def main():
     chroma_client = Client(settings=CHROMA_SETTINGS)
     
     # Create or get the collection named "chromadb"
-    collection = chroma_client.create_collection(name="chromadb")
+    collection = chroma_client.get_collection(name="chromadb")
+    if collection is None:
+        collection = chroma_client.create_collection(name="chromadb")
     
     # Add documents and embeddings to the collection
     for text_chunk, embedding in zip(texts, embeddings):
