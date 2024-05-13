@@ -3,11 +3,9 @@ import os
 from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor, as_completed
 from langchain.docstore.document import Document
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from chromadb import Client
 from PyPDF2 import PdfReader
-from InstructorEmbedding import INSTRUCTOR  # Import the Instructor👨‍🏫 model
 from sentence_transformers import SentenceTransformer
-
+from chromadb import Client, Settings
 
 ROOT_DIRECTORY = os.path.dirname(os.path.realpath(__file__))
 SOURCE_DIRECTORY = f"{ROOT_DIRECTORY}/SOURCE_DOCUMENTS"
@@ -15,6 +13,12 @@ INGEST_THREADS = 4  # Adjust as needed
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 200
 EMBEDDING_MODEL_NAME = "hkunlp/instructor-xl"  # Model name
+PERSIST_DIRECTORY = f"{ROOT_DIRECTORY}/DB"
+
+CHROMA_SETTINGS = Settings(
+    anonymized_telemetry=False,
+    is_persistent=True,
+)
 
 # Define PDF loader class
 class PdfLoader:
@@ -119,15 +123,18 @@ def main():
     embeddings = model.encode(all_text)
 
     logging.info(f"Loaded embeddings from {EMBEDDING_MODEL_NAME}")
-
-    chroma_client = Client()
-    collection = chroma_client.create_collection(name="data")
-
+    
+    # Create a ChromaDB client
+    chroma_client = Client(settings=CHROMA_SETTINGS)
+    
+    # Create or get the collection named "chromadb"
+    collection = chroma_client.create_collection(name="chromadb")
+    
+    # Add documents and embeddings to the collection
     for text_chunk, embedding in zip(texts, embeddings):
         doc_id = text_chunk.metadata["source"]
         embedding_list = embedding.tolist()  # Convert NumPy array to list of floats
         collection.add(embeddings=[embedding_list], ids=[doc_id])
-
 
     logging.info("Documents added to ChromaDB collection")
 
